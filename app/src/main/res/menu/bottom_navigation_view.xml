@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:id="@+id/mainScreen"
+        android:enabled="true"
+        android:icon="@drawable/ic_outline_home_black"
+        android:orderInCategory="0"
+        android:title="메인화면" />
+
+    <item android:id="@+id/webView1"
+        android:enabled="true"
+        android:icon="@drawable/ic_outline_star_black"
+        android:orderInCategory="1"
+        android:title="네이버" />
+
+    <item android:id="@+id/webView2"
+        android:enabled="true"
+        android:icon="@drawable/ic_outline_favorite_black"
+        android:orderInCategory="2"
+        android:title="다음" />
+
+    <item android:id="@+id/nativeView"
+        android:enabled="true"
+        android:icon="@drawable/ic_outline_note_black"
+        android:orderInCategory="3"
+        android:title="네이티브" />
+
+</menu>

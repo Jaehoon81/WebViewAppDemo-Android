@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="mainActivity_bottomNavigationView_layoutHeight">70dp</dimen>
+
+    <dimen name="nativeViewFragment_appVersion_textSize">20sp</dimen>
+    <dimen name="nativeViewFragment_recyclerView_scrollbarSize">4dp</dimen>
+
+    <dimen name="employeeCellItem_paddingHorizontal">20dp</dimen>
+    <dimen name="employeeCellItem_paddingVertical">10dp</dimen>
+    <dimen name="employeeCellItem_profileImage_layoutWidth">100dp</dimen>
+    <dimen name="employeeCellItem_profileImage_layoutHeight">100dp</dimen>
+    <dimen name="employeeCellItem_employeeName_layoutMarginStart">20dp</dimen>
+    <dimen name="employeeCellItem_employeeName_textSize">24sp</dimen>
+    <dimen name="employeeCellItem_employeeAge_layoutMarginStart">20dp</dimen>
+    <dimen name="employeeCellItem_employeeAge_layoutMarginTop">10dp</dimen>
+    <dimen name="employeeCellItem_employeeAge_textSize">18sp</dimen>
+
+    <dimen name="customPopupView_topLayout_layoutHeight">35dp</dimen>
+    <dimen name="customPopupView_goBackButton_layoutWidth">35dp</dimen>
+    <dimen name="customPopupView_cancelButton_layoutWidth">35dp</dimen>
+</resources>
