@@ -21,7 +21,7 @@ data class ResultDefault(
  * @property isError 에러 여부
  */
 data class ResultPhoto(
-    val uuid: String?, val action: String, var result: ArrayList<PhotoData>, val isError: Boolean
+    val uuid: String?, val action: String, val result: ArrayList<PhotoData>, val isError: Boolean
 ) {
     data class PhotoData(
         var name: String,

@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModelProvider
@@ -39,6 +40,7 @@ import kr.co.hoonproj.webviewappdemo.view.fragments.NativeViewFragment
 import kr.co.hoonproj.webviewappdemo.view.fragments.WebViewFragment
 import kr.co.hoonproj.webviewappdemo.viewmodel.MainViewModel
 import kr.co.hoonproj.webviewappdemo.viewmodel.MainViewModelFactory
+import java.net.URLDecoder
 
 private const val TAG: String = "[WebViewAppDemo] MainActivity"
 
@@ -84,7 +86,7 @@ class MainActivity : AppCompatActivity() {
         // onCreate()가 중복 호출되면 한번만 권한을 요청한다.
         // (예: Samsung Galaxy 시리즈의 경우, 처음 앱을 설치하면 onCreate()가 두번 호출됨)
         if (savedInstanceState == null) {
-//            requestPermissions()
+            requestPermissions(intent)
         }
     }
 
@@ -115,6 +117,29 @@ class MainActivity : AppCompatActivity() {
         Log.i(TAG, "MainActivity:: onNewIntent($intent)")
 
         setIntent(intent)
+        checkDeepLink(intent)
+    }
+
+    private fun checkDeepLink(intent: Intent?) {
+        val deepLinkData = intent?.data
+        if (deepLinkData != null) {
+            deepLinkData.getQueryParameter("target")?.toInt()?.let { targetTabIndex ->
+                deepLinkData.getQueryParameter("url")?.let { encodedUrl ->
+                    // DeepLink 데이터에서 파라미터 정보를 추출한 후, 다른 탭으로 이동하면서 특정 Url을 로드한다.
+                    try {
+                        val targetTabTag = "f$targetTabIndex"
+                        val targetUrl = "https://" + URLDecoder.decode(encodedUrl, "UTF-8")
+                        supportFragmentManager.setFragmentResult(
+                            targetTabTag, bundleOf("targetUrl" to targetUrl))
+                    } catch (e: Exception) {
+                        Log.e(TAG, e.stackTraceToString())
+                    }
+                }
+                mainViewModel.bottomTabIndex.postValue(targetTabIndex)
+            }
+        } else {
+            Log.d(TAG, "DeepLink data is a null value.")
+        }
     }
 
     override fun onStart() {
@@ -254,6 +279,7 @@ class MainActivity : AppCompatActivity() {
 
                 currentTabTag = "f$index"
                 EventBus.currentTabTag = currentTabTag
+                WebViewAppDemo.prefs.bottomTabIndex = index
             }
         }
     }
@@ -265,7 +291,6 @@ class MainActivity : AppCompatActivity() {
         // 하단 탭을 눌렀을 경우 실행할 리스너 등록
         mBinding?.bottomNavigationView!!.setOnItemSelectedListener { menuItem ->
             val index = menuItem.order
-            WebViewAppDemo.prefs.bottomTabIndex = index
             Log.d(TAG, "Selected_BottomTabIndex = $index")
 
             // 현재 탭을 다시 눌렀을 때는 해당 웹뷰의 초기 Url로 리로드한다.
@@ -331,11 +356,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestPermissions() {
+    private fun requestPermissions(intent: Intent?) {
         val permissionBuilder = TedPermission.create()
             .setPermissionListener(object : PermissionListener {
                 override fun onPermissionGranted() {
                     Log.i(TAG, "MainActivity:: onPermissionGranted()")
+                    checkDeepLink(intent)
                 }
                 override fun onPermissionDenied(deniedPermissions: MutableList<String>?) {
                     Log.w(TAG, "MainActivity:: onPermissionDenied()")

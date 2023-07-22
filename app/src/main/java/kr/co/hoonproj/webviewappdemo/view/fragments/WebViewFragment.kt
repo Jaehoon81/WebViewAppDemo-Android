@@ -18,7 +18,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kr.co.hoonproj.webviewappdemo.R
-import kr.co.hoonproj.webviewappdemo.WebViewAppDemo
 import kr.co.hoonproj.webviewappdemo.databinding.FragmentWebViewBinding
 import kr.co.hoonproj.webviewappdemo.services.SubWebViewService
 import kr.co.hoonproj.webviewappdemo.services.WebViewService
@@ -49,12 +48,14 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     private val subWebViewList: ArrayList<CustomPopupView> = arrayListOf()
     private val subProgressBarList: ArrayList<LinearProgressIndicator> = arrayListOf()
 
-    private lateinit var keyboardVisibility: KeyboardVisibility
+    private var keyboardVisibility: KeyboardVisibility? = null
     private var isVisibleOnShowKeyboard: Boolean = false
 
     private var tabTag: String? = null
     private var defaultUrl: String? = null
     private var reloadUrl: String? = null
+    private var reservedUrl: String = ""
+    private var isPageFinished: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,7 +74,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
      * MainActivity 등에서 예시와 같이 setFragmentResult()를 실행하면 아래의 Listener가 호출된다.
      *
      * val targetTabTag = "f1"
-     * val targetUrl = "https://www.nate.com"
+     * val targetUrl = "https://m.nate.com"
      * try {
      *     supportFragmentManager.setFragmentResult(targetTabTag, bundleOf("targetUrl" to targetUrl))
      *     mainViewModel.bottomTabIndex.postValue(1)
@@ -87,8 +88,8 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
 
             val targetUrl = bundle.getString("targetUrl")
             targetUrl?.let {
-                defaultUrl = it
-                mBinding.webView.loadUrl(it)
+                if (isPageFinished == true) { loadUrl(it) }
+                else { reservedUrl = it }
             }
         }
     }
@@ -100,7 +101,6 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
 
         initWebView()
         setOnScrollChangeListener()
-        setKeyboardVisibility()
 
         // Inflate the layout for this fragment
 //        return inflater.inflate(R.layout.fragment_web_view, container, false)
@@ -160,14 +160,6 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
         }
     }
 
-    private fun setKeyboardVisibility() {
-        keyboardVisibility = KeyboardVisibility(
-            requireActivity().window,
-            onShowKeyboard = { keyboardHeight -> onShowKeyboard(tabTag) },
-            onHideKeyboard = { onHideKeyboard(tabTag) }
-        )
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         Log.i(TAG, "WebViewFragment_$tabTag:: onViewCreated()")
@@ -183,6 +175,16 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     override fun onStart() {
         super.onStart()
         Log.i(TAG, "WebViewFragment_$tabTag:: onStart()")
+
+        setKeyboardVisibility()
+    }
+
+    private fun setKeyboardVisibility() {
+        keyboardVisibility = KeyboardVisibility(
+            requireActivity().window,
+            onShowKeyboard = { keyboardHeight -> onShowKeyboard(tabTag) },
+            onHideKeyboard = { onHideKeyboard(tabTag) }
+        )
     }
 
     override fun onResume() {
@@ -213,12 +215,13 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     override fun onStop() {
         super.onStop()
         Log.i(TAG, "WebViewFragment_$tabTag:: onStop()")
+
+        keyboardVisibility?.detachKeyboardListener()
     }
 
     override fun onDestroyView() {
         Log.i(TAG, "WebViewFragment_$tabTag:: onDestroyView()")
 
-        keyboardVisibility.detachKeyboardListener()
         super.onDestroyView()
     }
 
@@ -230,7 +233,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     }
 
     override fun onShowKeyboard(tabTag: String?) {
-        val currentTabIndex = WebViewAppDemo.prefs.bottomTabIndex
+        val currentTabIndex = mainViewModel.bottomTabIndex.value?: -1
         val targetTabIndex = tabTag?.substring(1, 2)!!.toInt()
         if (currentTabIndex == targetTabIndex) {
             (requireActivity() as MainActivity).showBottomNavigationBar()
@@ -245,7 +248,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     }
 
     override fun onHideKeyboard(tabTag: String?) {
-        val currentTabIndex = WebViewAppDemo.prefs.bottomTabIndex
+        val currentTabIndex = mainViewModel.bottomTabIndex.value?: -1
         val targetTabIndex = tabTag?.substring(1, 2)!!.toInt()
         if (currentTabIndex == targetTabIndex) {
             (requireActivity() as MainActivity).hideBottomNavigationBar()
@@ -260,9 +263,8 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
 
     fun getWebView(): WebView = currentWebView
 
-    fun canGoBack(): Boolean {
-        return currentWebView.canGoBack() && subWebViewList.isEmpty()
-    }
+    fun canGoBack(): Boolean =
+        (currentWebView.canGoBack() && subWebViewList.isEmpty())
 
     fun goBack() {
         currentWebView.goBack()
@@ -273,11 +275,8 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     }
 
     fun loadUrl(targetUrl: String) {
-        if (targetUrl.isEmpty()) {
-            reloadWebView()
-        } else {
-            mBinding.webView.loadUrl(targetUrl)
-        }
+        if (targetUrl.isEmpty()) { reloadWebView() }
+        else { mBinding.webView.loadUrl(targetUrl) }
     }
 
     private inner class CustomWebViewClient : WebViewClient() {
@@ -285,6 +284,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
             super.onPageStarted(view, url, favicon)
 
+            isPageFinished = false
             mBinding.progressBar.visibility = View.VISIBLE
             mBinding.progressBar.show()
             if (subProgressBarList.isNotEmpty()) {
@@ -302,6 +302,14 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
                 subProgressBarList.last().visibility = View.INVISIBLE
             }
             CookieManager.getInstance().flush()
+            isPageFinished = true
+
+            // DeepLink(=UriScheme) or AppLink로 인해 예약된 주소값이 있다면
+            // 기존 웹 페이지 로드가 끝난 후, 여기서 추가로 예약된 주소를 로드한다.
+            if (reservedUrl.isNotEmpty()) {
+                view?.loadUrl(reservedUrl)
+                reservedUrl = ""
+            }
         }
 
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -325,30 +333,21 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
                     startActivity(intent)
                     return true
                 }
-                "intent" -> {  // intent 링크 클릭 시, 특정 앱 실행 (예: 결제 서비스 앱)
+                else -> {  // 1. intent 링크 클릭 시, 특정 앱 실행 (예: 결제 서비스 앱)
+                           // 2. 특정 DeepLink(=UriScheme) 스킴의 경우, 해당 앱으로 이동
+                           // 3. AppLink(Https로 시작) 스킴인 경우, 서버로부터 Redirect를 통해 여기서 처리
                     Intent.parseUri(requestUrlStr, Intent.URI_INTENT_SCHEME)?.let { intent ->
                         runCatching {
                             startActivity(intent)  // 해당 앱으로 이동
                             return true
                         }.recoverCatching {
-                            // 해당 앱 미설치 시, Google Play 스토어로 이동
+                            // 해당 앱 미설치 시, Google-Play 스토어로 이동
                             val packageName = intent.getPackage()
                             if (!packageName.isNullOrBlank()) {
                                 val marketUriStr = "market://details?id=$packageName"
                                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(marketUriStr)))
                                 return true
                             }
-                            Log.w(TAG, "${it.localizedMessage}")
-                            return false
-                        }
-                    }
-                }
-                else -> {
-                    Intent.parseUri(requestUrlStr, Intent.URI_INTENT_SCHEME)?.let { intent ->
-                        runCatching {
-                            startActivity(intent)
-                            return true
-                        }.recoverCatching {
                             Log.w(TAG, "${it.localizedMessage}")
                             return false
                         }

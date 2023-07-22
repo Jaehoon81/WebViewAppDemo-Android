@@ -32,7 +32,7 @@ class CustomPopupView @JvmOverloads constructor(
     var popupListener: OnPopupChangedListener? = null
     var popupProgressBar: LinearProgressIndicator? = null
 
-    private lateinit var keyboardVisibility: KeyboardVisibility
+    private var keyboardVisibility: KeyboardVisibility? = null
     private var keyboardListener: OnKeyboardChangedListener? = null
     private var tabTag: String? = null
 
@@ -52,7 +52,7 @@ class CustomPopupView @JvmOverloads constructor(
             }
         }
         mBinding?.cancelButton!!.setOnClickListener {
-            keyboardVisibility.detachKeyboardListener()
+            keyboardVisibility?.detachKeyboardListener()
             keyboardListener?.onHideKeyboard(tabTag)
 
             removeWebView()

@@ -11,7 +11,6 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
 import dagger.hilt.android.AndroidEntryPoint
 import kr.co.hoonproj.webviewappdemo.R
-import kr.co.hoonproj.webviewappdemo.WebViewAppDemo
 import kr.co.hoonproj.webviewappdemo.databinding.FragmentNativeViewBinding
 import kr.co.hoonproj.webviewappdemo.model.remote.NetworkResponse
 import kr.co.hoonproj.webviewappdemo.model.remote.ResponseEmployees
@@ -37,6 +36,7 @@ class NativeViewFragment : Fragment(), NativeViewListener {
     private var isFragmentPaused: Boolean = false
 
     private lateinit var employeesAdapter: EmployeesAdapter
+    private var isEmployeesCallCompleted: Boolean = false
 
     private var tabTag: String? = null
 
@@ -56,6 +56,13 @@ class NativeViewFragment : Fragment(), NativeViewListener {
     private fun setFragmentResultListener(tabTag: String) {
         parentFragmentManager.setFragmentResultListener(tabTag, this) { key, bundle ->
             Log.d(TAG, "FragmentResultListener_Key: $key, Bundle: $bundle")
+
+            val targetUrl = bundle.getString("targetUrl")
+            targetUrl?.let {
+                if (isEmployeesCallCompleted == true) {
+                    refreshNativeView(false)
+                }
+            }
         }
     }
 
@@ -104,10 +111,7 @@ class NativeViewFragment : Fragment(), NativeViewListener {
         Log.i(TAG, "NativeViewFragment_$tabTag:: onViewCreated()")
 
         setupObservers()
-
-        val currentTabIndex = WebViewAppDemo.prefs.bottomTabIndex
-        val targetTabIndex = tabTag?.substring(1, 2)!!.toInt()
-        refreshNativeView(showAlertDialog = (currentTabIndex == targetTabIndex))
+        refreshNativeView(false)
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -169,17 +173,21 @@ class NativeViewFragment : Fragment(), NativeViewListener {
     }
 
     override fun onCompleteEmployeesCall(networkResponse: NetworkResponse, showAlertDialog: Boolean) {
-        if (showAlertDialog == true) {
+        val currentTabIndex = mainViewModel.bottomTabIndex.value?: -1
+        val targetTabIndex = tabTag?.substring(1, 2)!!.toInt()
+        if (showAlertDialog == true || currentTabIndex == targetTabIndex) {
             requireActivity().runOnUiThread {
                 CustomAlertDialog(requireContext(), message = networkResponse.resultMessage).show {
                     (requireActivity() as MainActivity).hideBottomNavigationBar()
                 }
             }
         }
+        isEmployeesCallCompleted = true
     }
 
     fun refreshNativeView(showAlertDialog: Boolean = true) {
         // 서버에 EmployeeData List를 요청한다.
+        isEmployeesCallCompleted = false
         mainViewModel.requestEmployeesToAPI(showAlertDialog)
     }
 }
