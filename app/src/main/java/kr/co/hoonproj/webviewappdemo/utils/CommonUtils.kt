@@ -20,8 +20,11 @@ private val NOTIFICATION_CHANNEL_NAME: CharSequence = "Status Notification"
 private const val NOTIFICATION_CHANNEL_ID = "STATUS_NOTIFICATION"
 private const val NOTIFICATION_ID = 99
 
+const val ACTION_SHOW_NOTI_MESSAGE = "show.noti.message"
+const val REQUEST_CODE_SHOW_NOTI_MESSAGE = 100
+
 fun makeNotification(
-    context: Context, title: String, message: String, pendingIntent: PendingIntent? = null
+    context: Context, title: String, message: String? = null, pendingIntent: PendingIntent? = null
 ): Notification {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val notificationChannel = NotificationChannel(
@@ -45,7 +48,7 @@ fun makeNotification(
 }
 
 fun showNotification(
-    context: Context, title: String, message: String, pendingIntent: PendingIntent? = null,
+    context: Context, title: String, message: String? = null, pendingIntent: PendingIntent? = null,
     notificationId: Int = NOTIFICATION_ID
 ) {
     if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)

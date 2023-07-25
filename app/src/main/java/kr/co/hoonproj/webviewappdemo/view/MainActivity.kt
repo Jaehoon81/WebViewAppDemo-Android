@@ -3,6 +3,7 @@ package kr.co.hoonproj.webviewappdemo.view
 import android.Manifest
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -32,6 +33,7 @@ import kr.co.hoonproj.webviewappdemo.databinding.ActivityMainBinding
 import kr.co.hoonproj.webviewappdemo.model.MainRepository
 import kr.co.hoonproj.webviewappdemo.services.RetrofitInstance
 import kr.co.hoonproj.webviewappdemo.services.RetrofitService
+import kr.co.hoonproj.webviewappdemo.utils.ACTION_SHOW_NOTI_MESSAGE
 import kr.co.hoonproj.webviewappdemo.utils.BottomTabs
 import kr.co.hoonproj.webviewappdemo.utils.EventBus
 import kr.co.hoonproj.webviewappdemo.utils.GlobalEvent
@@ -118,10 +120,11 @@ class MainActivity : AppCompatActivity() {
 
         setIntent(intent)
         checkDeepLink(intent)
+        checkNotification(intent)
     }
 
     private fun checkDeepLink(intent: Intent?) {
-        val deepLinkData = intent?.data
+        val deepLinkData: Uri? = intent?.data
         if (deepLinkData != null) {
             deepLinkData.getQueryParameter("target")?.toInt()?.let { targetTabIndex ->
                 deepLinkData.getQueryParameter("url")?.let { encodedUrl ->
@@ -139,6 +142,24 @@ class MainActivity : AppCompatActivity() {
             }
         } else {
             Log.d(TAG, "DeepLink data is a null value.")
+        }
+    }
+
+    private fun checkNotification(intent: Intent?) {
+        when (intent?.action) {
+            ACTION_SHOW_NOTI_MESSAGE -> {
+                val notificationData: Bundle? = intent?.extras
+                if (notificationData != null) {
+                    // 수신된 노티 메시지 데이터를 활용하기 위한 코드작성
+                    var notificationDataStr = ""
+                    for (key in notificationData.keySet()) {
+                        notificationDataStr += "[Key: ${key}, Value: ${notificationData.getString(key)}]"
+                    }
+                    Log.d(TAG, "Notification_Data = $notificationDataStr")
+                } else {
+                    Log.d(TAG, "Notification data is a null value.")
+                }
+            }
         }
     }
 
@@ -362,6 +383,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onPermissionGranted() {
                     Log.i(TAG, "MainActivity:: onPermissionGranted()")
                     checkDeepLink(intent)
+                    checkNotification(intent)
                 }
                 override fun onPermissionDenied(deniedPermissions: MutableList<String>?) {
                     Log.w(TAG, "MainActivity:: onPermissionDenied()")
@@ -372,11 +394,11 @@ class MainActivity : AppCompatActivity() {
             .setRationaleMessage("앱을 이용하기 위해서는 '알림' 권한이 필요합니다.")
             .setDeniedMessage("요청한 권한을 거부할 경우, 앱을 이용할 수 없습니다.\n설정의 앱 정보에서 해당 권한을 활성화해주세요.")
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionBuilder.setPermissions(
                 Manifest.permission.POST_NOTIFICATIONS
             ).check()
-        }
+//        }
     }
 
     private inner class WebViewPagerAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {

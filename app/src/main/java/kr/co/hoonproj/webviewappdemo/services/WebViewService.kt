@@ -1,10 +1,13 @@
 package kr.co.hoonproj.webviewappdemo.services
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,9 +19,13 @@ import kr.co.hoonproj.webviewappdemo.model.local.RequestAction
 import kr.co.hoonproj.webviewappdemo.model.local.ResultDefault
 import kr.co.hoonproj.webviewappdemo.model.local.ResultError
 import kr.co.hoonproj.webviewappdemo.model.local.ResultPhoto
+import kr.co.hoonproj.webviewappdemo.utils.ACTION_SHOW_NOTI_MESSAGE
 import kr.co.hoonproj.webviewappdemo.utils.BottomTabs
 import kr.co.hoonproj.webviewappdemo.utils.EventBus
 import kr.co.hoonproj.webviewappdemo.utils.GlobalEvent
+import kr.co.hoonproj.webviewappdemo.utils.REQUEST_CODE_SHOW_NOTI_MESSAGE
+import kr.co.hoonproj.webviewappdemo.utils.showNotification
+import kr.co.hoonproj.webviewappdemo.view.MainActivity
 import kr.co.hoonproj.webviewappdemo.viewmodel.MainViewModel
 
 private const val TAG: String = "[WebViewAppDemo] WebViewService"
@@ -44,6 +51,7 @@ class WebViewService(
         when (request.action) {
             ActionCode.GetDeviceUUID.value      -> processGetDeviceUUID(request.uuid, request.action)
             ActionCode.ShowToastMessage.value   -> processShowToastMessage(request.uuid, request.action, request.params)
+            ActionCode.ShowNotiMessage.value    -> processShowNotiMessage(request.uuid, request.action, request.params)
             ActionCode.ReloadOtherTabs.value    -> processReloadOtherTabs(request.uuid, request.action)
             ActionCode.GoToAnotherTab.value     -> processGoToAnotherTab(request.uuid, request.action, request.params)
             ActionCode.ShowBottomNaviView.value -> processBottomNaviView(request.uuid, request.action, true)
@@ -83,6 +91,30 @@ class WebViewService(
             callJavaScript(resultJsonStr)
         } else {
             Toast.makeText(context, params[0], Toast.LENGTH_LONG).show()
+
+            val resultData = ResultDefault(uuid, action, params[0], false)
+            val resultJsonStr = toResultJson(resultData)?: ErrorCode.JsonDataFailure.description
+            callJavaScript(resultJsonStr)
+        }
+    }
+
+    // 노티 메시지를 화면에 노출한다.
+    private fun processShowNotiMessage(uuid: String?, action: String, params: List<String>?) {
+        if (params.isNullOrEmpty()) {
+            val resultJsonStr = toErrorJson(uuid, action, ErrorCode.InvalidParameter)
+            callJavaScript(resultJsonStr)
+        } else {
+            val intent = Intent(context, MainActivity::class.java)
+            intent.action = ACTION_SHOW_NOTI_MESSAGE
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            val extras = if (params.count() == 1) { bundleOf("title" to params[0]) }
+            else { bundleOf("title" to params[0], "message" to params[1]) }
+            intent.putExtras(extras)
+
+            val message = if (params.count() == 1) { null } else { params[1] }
+            val flags = PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            val pendingIntent = PendingIntent.getActivity(context, REQUEST_CODE_SHOW_NOTI_MESSAGE, intent, flags)
+            showNotification(context, params[0], message, pendingIntent)
 
             val resultData = ResultDefault(uuid, action, params[0], false)
             val resultJsonStr = toResultJson(resultData)?: ErrorCode.JsonDataFailure.description

@@ -4,6 +4,7 @@ enum class ActionCode(val value: String) {
 
     GetDeviceUUID("getDeviceUUID"),
     ShowToastMessage("showToastMessage"),
+    ShowNotiMessage("showNotiMessage"),
     ReloadOtherTabs("reloadOtherTabs"),
     GoToAnotherTab("goToAnotherTab"),
     ShowBottomNaviView("showBottomNaviView"),
