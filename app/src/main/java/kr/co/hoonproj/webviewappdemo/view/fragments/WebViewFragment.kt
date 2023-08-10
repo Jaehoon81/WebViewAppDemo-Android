@@ -41,7 +41,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
         FragmentWebViewBinding.inflate(layoutInflater)
     }
     private lateinit var mainViewModel: MainViewModel
-    private var isFragmentPaused: Boolean = false
+    private var isFragmentPaused: Boolean = true
 
     private lateinit var currentWebView: WebView
     private lateinit var webViewService: WebViewService
@@ -55,7 +55,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     private var defaultUrl: String? = null
     private var reloadUrl: String? = null
     private var reservedUrl: String = ""
-    private var isPageFinished: Boolean = false
+    private var isPageLoadingFinished: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,10 +87,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
             Log.d(TAG, "FragmentResultListener_Key: $key, Bundle: $bundle")
 
             val targetUrl = bundle.getString("targetUrl")
-            targetUrl?.let {
-                if (isPageFinished == true) { loadUrl(it) }
-                else { reservedUrl = it }
-            }
+            targetUrl?.let { loadUrl(it) }
         }
     }
 
@@ -167,7 +164,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
         val targetUrl = arguments?.getString("targetUrl")
         Log.d(TAG, "Target_Url($tabTag): $targetUrl")
 
-        targetUrl?.let { mBinding.webView.loadUrl(it) }
+//        targetUrl?.let { mBinding.webView.loadUrl(it) }
         defaultUrl = targetUrl
         reloadUrl = targetUrl
     }
@@ -190,16 +187,16 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     override fun onResume() {
         super.onResume()
 
-        // 처음 실행 시에는 onStart() -> onResume() -> onPause() -> onResume() 순서로 호출된다.
-        // 첫번째 onResume()은 로직의 중복 방지를 위해 건너뛴다.
+        // onResume()이 두번 연속 호출되어 로직이 중복되는 것을 방지하기 위한 if 조건문 설정
+        // (초기값: isFragmentPaused = true)
         if (isFragmentPaused == true) {
             isFragmentPaused = false
             Log.i(TAG, "WebViewFragment_$tabTag:: onResume()")
 
             defaultUrl?.let {
-                // 1. 각 하단 탭을 누를 때마다 해당 화면의 초기 페이지를 로드하고 싶을 경우
-//                mBinding.webView.loadUrl(it)
-                // 2. 각 하단 탭의 화면을 그대로 유지하고 싶은 경우
+                mBinding.webView.loadUrl(it)
+                // 1. 각 하단 탭을 누를 때마다 해당 화면의 초기 페이지를 로드하고 싶을 경우: defaultUrl = null 주석처리
+                // 2. 각 하단 탭의 화면을 그대로 유지하고 싶은 경우: defaultUrl = null 주석해제
                 defaultUrl = null
             }
         }
@@ -271,12 +268,23 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
     }
 
     fun reloadWebView() {
-        reloadUrl?.let { mBinding.webView.loadUrl(it) }
+        if (isPageLoadingFinished == false) { return }
+
+        reloadUrl?.let {
+            mBinding.webView.loadUrl(it)
+        }
     }
 
     fun loadUrl(targetUrl: String) {
-        if (targetUrl.isEmpty()) { reloadWebView() }
-        else { mBinding.webView.loadUrl(targetUrl) }
+        if (targetUrl.isEmpty()) {
+            reloadWebView()
+        } else {
+            if (isPageLoadingFinished == true) {
+                mBinding.webView.loadUrl(targetUrl)
+            } else {
+                reservedUrl = targetUrl
+            }
+        }
     }
 
     private inner class CustomWebViewClient : WebViewClient() {
@@ -284,7 +292,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
             super.onPageStarted(view, url, favicon)
 
-            isPageFinished = false
+            isPageLoadingFinished = false
             mBinding.progressBar.visibility = View.VISIBLE
             mBinding.progressBar.show()
             if (subProgressBarList.isNotEmpty()) {
@@ -302,7 +310,7 @@ class WebViewFragment : Fragment(), OnKeyboardChangedListener {
                 subProgressBarList.last().visibility = View.INVISIBLE
             }
             CookieManager.getInstance().flush()
-            isPageFinished = true
+            isPageLoadingFinished = true
 
             // DeepLink(=UriScheme) or AppLink로 인해 예약된 주소값이 있다면
             // 기존 웹 페이지 로드가 끝난 후, 여기서 추가로 예약된 주소를 로드한다.

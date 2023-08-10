@@ -1,6 +1,7 @@
 package kr.co.hoonproj.webviewappdemo.view
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -377,6 +378,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("SuspiciousIndentation")
     private fun requestPermissions(intent: Intent?) {
         val permissionBuilder = TedPermission.create()
             .setPermissionListener(object : PermissionListener {

@@ -33,10 +33,11 @@ class NativeViewFragment : Fragment(), NativeViewListener {
         FragmentNativeViewBinding.inflate(layoutInflater)
     }
     private lateinit var mainViewModel: MainViewModel
-    private var isFragmentPaused: Boolean = false
+    private var isFragmentPaused: Boolean = true
 
     private lateinit var employeesAdapter: EmployeesAdapter
-    private var isEmployeesCallCompleted: Boolean = false
+    private var isEmployeesCallCompleted: Boolean = true
+    private var isFirstApiCallFinished: Boolean = false
 
     private var tabTag: String? = null
 
@@ -58,11 +59,7 @@ class NativeViewFragment : Fragment(), NativeViewListener {
             Log.d(TAG, "FragmentResultListener_Key: $key, Bundle: $bundle")
 
             val targetUrl = bundle.getString("targetUrl")
-            targetUrl?.let {
-                if (isEmployeesCallCompleted == true) {
-                    refreshNativeView(false)
-                }
-            }
+            targetUrl?.let { refreshNativeView(false) }
         }
     }
 
@@ -111,7 +108,7 @@ class NativeViewFragment : Fragment(), NativeViewListener {
         Log.i(TAG, "NativeViewFragment_$tabTag:: onViewCreated()")
 
         setupObservers()
-        refreshNativeView(false)
+//        refreshNativeView(false)
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -136,11 +133,16 @@ class NativeViewFragment : Fragment(), NativeViewListener {
     override fun onResume() {
         super.onResume()
 
-        // 처음 실행 시에는 onStart() -> onResume() -> onPause() -> onResume() 순서로 호출된다.
-        // 첫번째 onResume()은 로직의 중복 방지를 위해 건너뛴다.
+        // onResume()이 두번 연속 호출되어 로직이 중복되는 것을 방지하기 위한 if 조건문 설정
+        // (초기값: isFragmentPaused = true)
         if (isFragmentPaused == true) {
             isFragmentPaused = false
             Log.i(TAG, "NativeViewFragment_$tabTag:: onResume()")
+
+            if (isFirstApiCallFinished == false) {
+                isFirstApiCallFinished = true
+                refreshNativeView(false)
+            }
         }
     }
 
@@ -183,11 +185,16 @@ class NativeViewFragment : Fragment(), NativeViewListener {
             }
         }
         isEmployeesCallCompleted = true
+        isFirstApiCallFinished = true
     }
 
     fun refreshNativeView(showAlertDialog: Boolean = true) {
+        if (isFirstApiCallFinished == false) { return }
+
         // 서버에 EmployeeData List를 요청한다.
-        isEmployeesCallCompleted = false
-        mainViewModel.requestEmployeesToAPI(showAlertDialog)
+        if (isEmployeesCallCompleted == true) {
+            isEmployeesCallCompleted = false
+            mainViewModel.requestEmployeesToAPI(showAlertDialog)
+        }
     }
 }
